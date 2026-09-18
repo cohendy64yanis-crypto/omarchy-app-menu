@@ -15,10 +15,7 @@ Panel {
     property var hostWidget: null
     property bool isEditing: false
 
-    function open() { 
-        root.controller.show(); 
-        savedListView.forceActiveFocus(); // Donne le focus clavier direct à la liste à l'ouverture
-    }
+    function open() { root.controller.show(); }
     function close() { 
         searchInput.text = "";
         root.isEditing = false;
@@ -117,6 +114,34 @@ print(json.dumps(apps))
             anchors.fill: parent
             onCloseRequested: root.close()
 
+            // Gestion globale des flèches et de la touche Entrée ici
+            Keys.onPressed: function(event) {
+                if (!root.isEditing) {
+                    if (event.key === Qt.Key_Down) {
+                        if (savedListView.currentIndex < savedListView.count - 1) {
+                            savedListView.currentIndex++;
+                        }
+                        event.accepted = true;
+                    } else if (event.key === Qt.Key_Up) {
+                        if (savedListView.currentIndex > 0) {
+                            savedListView.currentIndex--;
+                        }
+                        event.accepted = true;
+                    } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                        if (savedListView.currentIndex >= 0 && savedListView.currentIndex < savedListView.count) {
+                            var item = savedAppsModel.get(savedListView.currentIndex);
+                            if (item) {
+                                var cleanExec = item.appExec.replace(/%[a-zA-Z]/g, "").trim();
+                                actionProcess.command = ["sh", "-c", "nohup " + cleanExec + " >/dev/null 2>&1 &"];
+                                actionProcess.running = true;
+                                root.close();
+                            }
+                        }
+                        event.accepted = true;
+                    }
+                }
+            }
+
             ColumnLayout {
                 id: content
                 width: parent.width
@@ -139,13 +164,12 @@ print(json.dumps(apps))
                                 loadAllApps.running = true;
                             } else {
                                 searchInput.text = "";
-                                savedListView.forceActiveFocus();
                             }
                         }
                     }
                 }
 
-                // --- VUE NORMALE (Navigation flèches + Entrée) ---
+                // --- VUE NORMALE ---
                 ListView {
                     id: savedListView
                     Layout.fillWidth: true
@@ -153,7 +177,6 @@ print(json.dumps(apps))
                     clip: true
                     visible: !root.isEditing
                     model: savedAppsModel
-                    focus: true
 
                     highlight: Rectangle {
                         color: root.barForeground
@@ -161,27 +184,6 @@ print(json.dumps(apps))
                         radius: 4
                     }
                     highlightFollowsCurrentItem: true
-
-                    Keys.onPressed: function(event) {
-                        if (event.key === Qt.Key_Down) {
-                            if (currentIndex < count - 1) currentIndex++;
-                            event.accepted = true;
-                        } else if (event.key === Qt.Key_Up) {
-                            if (currentIndex > 0) currentIndex--;
-                            event.accepted = true;
-                        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                            if (currentIndex >= 0 && currentIndex < count) {
-                                var item = model.get(currentIndex);
-                                if (item) {
-                                    var cleanExec = item.appExec.replace(/%[a-zA-Z]/g, "").trim();
-                                    actionProcess.command = ["sh", "-c", "nohup " + cleanExec + " >/dev/null 2>&1 &"];
-                                    actionProcess.running = true;
-                                    root.close();
-                                }
-                            }
-                            event.accepted = true;
-                        }
-                    }
 
                     delegate: Rectangle {
                         width: savedListView.width
