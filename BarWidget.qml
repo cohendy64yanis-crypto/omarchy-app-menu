@@ -1,12 +1,28 @@
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import qs.Ui
 
 BarWidget {
     id: root
     moduleName: "io.github.cohendy64yanis-crypto.app-menu"
 
-    // Force une taille explicite pour la barre
+    property string menuName: "+ Add the app"
+
+    Process {
+        id: loadConfigProcess
+        command: ["sh", "-c", "cat ~/.config/omarchy/app-menus/current.json 2>/dev/null || echo '{\"name\":\"+ Add the app\",\"apps\":[]}'"]
+        running: true
+        stdout: SplitParser {
+            onRead: data => {
+                try {
+                    var json = JSON.parse(data.trim());
+                    if (json.name) root.menuName = json.name;
+                } catch(e) {}
+            }
+        }
+    }
+
     implicitWidth: button.implicitWidth
     implicitHeight: button.implicitHeight
 
@@ -27,9 +43,10 @@ BarWidget {
 
     WidgetButton {
         id: button
-        text: "+ Add the app"
-        tooltipText: "Créer un menu d'applications"
+        anchors.fill: parent
         bar: root.bar
+        text: root.menuName
+        tooltipText: "Menu d'applications"
         onPressed: function(buttonCode) {
             if (buttonCode === Qt.LeftButton) root.toggle()
         }
