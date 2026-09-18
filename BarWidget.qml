@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Layouts
 import Quickshell
 import qs.Ui
 
@@ -7,9 +6,9 @@ BarWidget {
     id: root
     moduleName: "io.github.cohendy64yanis-crypto.app-menu"
 
-    // La correction est ici : on donne une taille au widget pour qu'il soit visible
-    implicitWidth: mainLayout.implicitWidth
-    implicitHeight: mainLayout.implicitHeight
+    // La taille du widget copie strictement celle du bouton. Zéro ambiguïté.
+    implicitWidth: addBtn.implicitWidth
+    implicitHeight: addBtn.implicitHeight
 
     readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
 
@@ -26,6 +25,19 @@ BarWidget {
 
     onBarChanged: injectPanel()
 
+    // Le bouton s'affiche directement
+    WidgetButton {
+        id: addBtn
+        text: "+ Add the app"
+        tooltipText: "Créer un nouveau menu d'applications"
+        anchors.fill: parent
+        
+        onPressed: function(buttonCode) {
+            if (buttonCode === Qt.LeftButton) root.toggle()
+        }
+    }
+
+    // Le panneau est chargé discrètement
     Loader {
         id: panelLoader
         active: true
@@ -34,21 +46,6 @@ BarWidget {
         onLoaded: {
             root.injectPanel()
             Qt.callLater(root.injectPanel)
-        }
-    }
-
-    RowLayout {
-        id: mainLayout
-        anchors.fill: parent
-        spacing: 4
-        
-        WidgetButton {
-            id: addBtn
-            text: "+ Add the app"
-            tooltipText: "Créer un nouveau menu d'applications"
-            onPressed: function(buttonCode) {
-                if (buttonCode === Qt.LeftButton) root.toggle()
-            }
         }
     }
 }
