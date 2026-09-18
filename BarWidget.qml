@@ -6,13 +6,15 @@ BarWidget {
     id: root
     moduleName: "io.github.cohendy64yanis-crypto.app-menu"
 
+    // Force une taille explicite pour la barre
+    implicitWidth: button.implicitWidth
+    implicitHeight: button.implicitHeight
+
     readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
-    readonly property bool popoutSwitchClosing: panelLoader.item ? panelLoader.item.popoutSwitchClosing === true : false
 
     function open() { if (panelLoader.item) panelLoader.item.open() }
     function close() { if (panelLoader.item) panelLoader.item.close() }
     function toggle() { if (panelLoader.item) panelLoader.item.toggle() }
-    function closeForPopoutSwitch() { if (panelLoader.item) panelLoader.item.closeForPopoutSwitch() }
 
     function injectPanel() {
         if (!panelLoader.item) return
@@ -21,9 +23,17 @@ BarWidget {
         panelLoader.item.hostWidget = root
     }
 
-    implicitWidth: button.implicitWidth
-    implicitHeight: button.implicitHeight
     onBarChanged: injectPanel()
+
+    WidgetButton {
+        id: button
+        text: "+ Add the app"
+        tooltipText: "Créer un menu d'applications"
+        bar: root.bar
+        onPressed: function(buttonCode) {
+            if (buttonCode === Qt.LeftButton) root.toggle()
+        }
+    }
 
     Loader {
         id: panelLoader
@@ -33,17 +43,6 @@ BarWidget {
         onLoaded: {
             root.injectPanel()
             Qt.callLater(root.injectPanel)
-        }
-    }
-
-    WidgetButton {
-        id: button
-        anchors.fill: parent
-        bar: root.bar
-        text: "+ Add the app"
-        tooltipText: "Créer un menu d'applications"
-        onPressed: function(buttonCode) {
-            if (buttonCode === Qt.LeftButton) root.toggle()
         }
     }
 }
