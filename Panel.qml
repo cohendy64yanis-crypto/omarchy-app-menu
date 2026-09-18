@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
@@ -15,6 +16,41 @@ Panel {
 
     function open() { root.controller.show() }
     function close() { root.controller.hide() }
+    function toggle() { 
+        if (root.controller.visible) root.close(); 
+        else root.open(); 
+    }
+
+    // Raccourci global Super + Z pour ouvrir/fermer le menu
+    GlobalShortcut {
+        name: "app-menu-toggle"
+        text: "Super+Z"
+        onPressed: root.toggle()
+    }
+
+    // Processus pour lister les applications du PC (.desktop)
+    Process {
+        id: appListerProcess
+        command: ["sh", "-c", "grep -h '^Name=' /usr/share/applications/*.desktop ~/.local/share/applications/*.desktop 2>/dev/null | cut -d= -f2 | sort -u"]
+        running: false
+        stdout: SplitParser {
+            onRead: data => {
+                if (data.trim().length > 0) {
+                    allAppsModel.append({ appName: data.trim(), selected: false })
+                }
+            }
+        }
+    }
+
+    // Processus pour sauvegarder le menu sur le disque
+    Process {
+        id: saveProcess
+        running: false
+    }
+
+    Component.onCompleted: {
+        appListerProcess.running = true
+    }
 
     KeyboardPanel {
         id: panel
@@ -24,7 +60,7 @@ Panel {
         open: root.opened
         focusTarget: keyCatcher
 
-        contentWidth: panel.fittedContentWidth(Style.space(340))
+        contentWidth: panel.fittedContentWidth(Style.space(360))
         contentHeight: panel.fittedContentHeight(content.implicitHeight)
 
         PanelKeyCatcher {
@@ -44,7 +80,7 @@ Panel {
                     font.pixelSize: Style.font.subtitle
                 }
 
-                // Rectangle bien visible pour le nom du menu
+                // Champ de saisie du nom du menu
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 38
@@ -73,24 +109,30 @@ Panel {
                     }
                 }
 
-                Text {
-                    text: "Sélectionne les applications :"
-                    color: root.barForeground
-                    font.pixelSize: Style.font.body
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    CheckBox {
+                        id: browserAppsToggle
+                        checked: true
+                    }
+
+                    Text {
+                        text: "Lister toutes les applications du PC"
+                        color: root.barForeground
+                        font.pixelSize: Style.font.body
+                    }
                 }
 
+                // Liste dynamique de toutes les applications de l'ordinateur
                 ListView {
                     id: appListView
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 200
+                    Layout.preferredHeight: 220
                     clip: true
-                    model: ListModel {
-                        ListElement { appName: "Terminal"; selected: false }
-                        ListElement { appName: "Navigateur Web (Firefox / Chrome)"; selected: false }
-                        ListElement { appName: "Discord"; selected: false }
-                        ListElement { appName: "Geometry Dash"; selected: false }
-                        ListElement { appName: "Éditeur de texte"; selected: false }
-                    }
+                    visible: browserAppsToggle.checked
+                    model: ListModel { id: allAppsModel }
                     delegate: RowLayout {
                         width: appListView.width
                         spacing: 8
@@ -105,6 +147,7 @@ Panel {
                             color: root.barForeground
                             Layout.fillWidth: true
                             font.pixelSize: Style.font.body
+                            elide: Text.ElideRight
                         }
                     }
                 }
@@ -113,8 +156,24 @@ Panel {
                     Layout.alignment: Qt.AlignRight
                     text: "Sauvegarder"
                     onClicked: {
-                        console.log("Menu créé : " + menuNameInput.text)
-                        root.close()
+                        var menuName = menuNameInput.text.trim();
+                        if (menuName.length === 0) return;
+
+                        // Récupération des apps cochées
+                        var selectedApps = [];
+                        for (var i = 0; i < allAppsModel.count; i++) {
+                            if (allAppsModel.get(i).selected) {
+                                selectedApps.push(allAppsModel.get(i).appName);
+                            }
+                        }
+
+                        // Sauvegarde dans un fichier JSON local via un script bash
+                        var payload = JSON.stringify({ name: menuName, apps: selectedApps });
+                        saveProcess.command = ["sh", "-c", "mkdir -p ~/.config/omarchy/app-menus && echo '" + payload + "' > ~/.config/omarchy/app-menus/" + menuName + ".json"];
+                        saveProcess.running = true;
+
+                        console.log("Menu '" + menuName + "' sauvegardé avec " + selectedApps.length + " applications.");
+                        root.close();
                     }
                 }
             }
