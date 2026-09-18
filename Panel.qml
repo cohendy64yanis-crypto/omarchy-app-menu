@@ -15,7 +15,10 @@ Panel {
 
     function open() { root.controller.show() }
     function close() { root.controller.hide() }
-    function toggle() { root.opened ? root.close() : root.open() }
+    function switchPanel(direction) {
+        if (root.bar && typeof root.bar.switchPanelFrom === "function") return root.bar.switchPanelFrom(root.hostWidget || root, direction)
+        return false
+    }
 
     KeyboardPanel {
         id: panel
@@ -25,58 +28,31 @@ Panel {
         open: root.opened
         focusTarget: keyCatcher
 
-        // Taille de la fenêtre volante
-        contentWidth: 320
-        contentHeight: 400
+        contentWidth: panel.fittedContentWidth(Style.space(280))
+        contentHeight: panel.fittedContentHeight(content.implicitHeight)
 
         PanelKeyCatcher {
             id: keyCatcher
             anchors.fill: parent
             onCloseRequested: root.close()
 
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 12
-                spacing: 12
+            Column {
+                id: content
+                width: parent.width
+                spacing: Style.space(8)
 
                 Text {
+                    width: parent.width
                     text: "Créer un nouveau menu"
+                    color: root.barForeground
+                    font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                    font.pixelSize: Style.font.subtitle
                     font.bold: true
-                    color: "white"
                 }
 
                 TextField {
-                    id: menuNameInput
-                    Layout.fillWidth: true
-                    placeholderText: "Nom du menu (ex: Jeux, Dev...)"
-                }
-
-                Text {
-                    text: "Sélectionne les applications :"
-                    color: "lightgray"
-                }
-
-                // Liste provisoire pour la structure visuelle
-                ScrollView {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    
-                    ListView {
-                        model: ["Terminal", "Navigateur", "Discord", "Geometry Dash", "Editeur de texte"]
-                        delegate: CheckBox {
-                            text: modelData
-                            // Le style s'adaptera au thème d'Omarchy
-                        }
-                    }
-                }
-
-                Button {
-                    text: "Sauvegarder"
-                    Layout.alignment: Qt.AlignRight
-                    onClicked: {
-                        console.log("Menu " + menuNameInput.text + " sauvegardé.")
-                        root.close()
-                    }
+                    width: parent.width
+                    placeholderText: "Nom du menu..."
                 }
             }
         }
