@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
+import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
@@ -21,18 +22,16 @@ Panel {
         else root.open(); 
     }
 
-    // Raccourci global Super + Z pour ouvrir/fermer le menu
     GlobalShortcut {
         name: "app-menu-toggle"
         text: "Super+Z"
         onPressed: root.toggle()
     }
 
-    // Processus pour lister les applications du PC (.desktop)
     Process {
         id: appListerProcess
         command: ["sh", "-c", "grep -h '^Name=' /usr/share/applications/*.desktop ~/.local/share/applications/*.desktop 2>/dev/null | cut -d= -f2 | sort -u"]
-        running: false
+        running: true
         stdout: SplitParser {
             onRead: data => {
                 if (data.trim().length > 0) {
@@ -42,14 +41,9 @@ Panel {
         }
     }
 
-    // Processus pour sauvegarder le menu sur le disque
     Process {
         id: saveProcess
         running: false
-    }
-
-    Component.onCompleted: {
-        appListerProcess.running = true
     }
 
     KeyboardPanel {
@@ -80,7 +74,6 @@ Panel {
                     font.pixelSize: Style.font.subtitle
                 }
 
-                // Champ de saisie du nom du menu
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 38
@@ -125,7 +118,6 @@ Panel {
                     }
                 }
 
-                // Liste dynamique de toutes les applications de l'ordinateur
                 ListView {
                     id: appListView
                     Layout.fillWidth: true
@@ -159,17 +151,16 @@ Panel {
                         var menuName = menuNameInput.text.trim();
                         if (menuName.length === 0) return;
 
-                        // Récupération des apps cochées
                         var selectedApps = [];
                         for (var i = 0; i < allAppsModel.count; i++) {
-                            if (allAppsModel.get(i).selected) {
-                                selectedApps.push(allAppsModel.get(i).appName);
+                            var item = allAppsModel.get(i);
+                            if (item && item.selected) {
+                                selectedApps.push(item.appName);
                             }
                         }
 
-                        // Sauvegarde dans un fichier JSON local via un script bash
                         var payload = JSON.stringify({ name: menuName, apps: selectedApps });
-                        saveProcess.command = ["sh", "-c", "mkdir -p ~/.config/omarchy/app-menus && echo '" + payload + "' > ~/.config/omarchy/app-menus/" + menuName + ".json"];
+                        saveProcess.command = ["sh", "-c", "mkdir -p ~/.config/omarchy/app-menus && echo '" + payload.replace(/'/g, "'\\''") + "' > ~/.config/omarchy/app-menus/" + menuName + ".json"];
                         saveProcess.running = true;
 
                         console.log("Menu '" + menuName + "' sauvegardé avec " + selectedApps.length + " applications.");
