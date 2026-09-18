@@ -13,31 +13,70 @@ Panel {
 
     property var anchorItem: null
     property var hostWidget: null
+    property bool isEditing: false
 
     function open() { root.controller.show() }
     function close() { root.controller.hide() }
-    function toggle() { 
-        if (root.controller.visible) root.close(); 
-        else root.open(); 
-    }
+
+    ListModel { id: savedAppsModel }
+    ListModel { id: allAppsModel }
 
     Process {
-        id: appListerProcess
-        command: ["sh", "-c", "grep -h '^Name=' /usr/share/applications/*.desktop ~/.local/share/applications/*.desktop 2>/dev/null | cut -d= -f2 | sort -u"]
+        id: loadSavedApps
+        command: ["sh", "-c", "cat ~/.config/omarchy/app-menus/current.json 2>/dev/null"]
         running: true
         stdout: SplitParser {
             onRead: data => {
-                if (data.trim().length > 0) {
-                    allAppsModel.append({ appName: data.trim(), selected: false })
-                }
+                try {
+                    var json = JSON.parse(data.trim());
+                    savedAppsModel.clear();
+                    if (json.apps) {
+                        for (var i = 0; i < json.apps.length; i++) {
+                            savedAppsModel.append({ appName: json.apps[i].name, appExec: json.apps[i].exec });
+                        }
+                    }
+                } catch(e) {}
             }
         }
     }
 
     Process {
-        id: saveProcess
-        running: false
+        id: loadAllApps
+        command: ["python3", "-c", "
+import glob, configparser, os
+apps = []
+paths = ['/usr/share/applications/*.desktop', os.path.expanduser('~/.local/share/applications/*.desktop')]
+for p in paths:
+    for f in glob.glob(p):
+        config = configparser.ConfigParser(interpolation=None)
+        try:
+            config.read(f, encoding='utf-8')
+            if 'Desktop Entry' in config:
+                de = config['Desktop Entry']
+                if de.get('Type') == 'Application' and not de.get('NoDisplay') == 'true':
+                    name = de.get('Name', '')
+                    exec_cmd = de.get('Exec', '')
+                    if name and exec_cmd:
+                        apps.append({'name': name, 'exec': exec_cmd})
+        except: pass
+import json
+print(json.dumps(apps))
+"]
+        running: true
+        stdout: SplitParser {
+            onRead: data => {
+                try {
+                    var list = JSON.parse(data.trim());
+                    allAppsModel.clear();
+                    for (var i = 0; i < list.length; i++) {
+                        allAppsModel.append({ appName: list[i].name, appExec: list[i].exec, selected: false });
+                    }
+                } catch(e) {}
+            }
+        }
     }
+
+    Process { id: actionProcess; running: false }
 
     KeyboardPanel {
         id: panel
@@ -58,106 +97,144 @@ Panel {
             ColumnLayout {
                 id: content
                 width: parent.width
-                spacing: Style.space(12)
-
-                Text {
-                    text: "Créer un nouveau menu"
-                    color: root.barForeground
-                    font.bold: true
-                    font.pixelSize: Style.font.subtitle
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 38
-                    color: "transparent"
-                    border.color: root.barForeground
-                    border.width: 1
-                    radius: 4
-
-                    TextInput {
-                        id: menuNameInput
-                        anchors.fill: parent
-                        anchors.leftMargin: 10
-                        anchors.rightMargin: 10
-                        verticalAlignment: TextInput.AlignVCenter
-                        color: root.barForeground
-                        font.pixelSize: Style.font.body
-
-                        Text {
-                            text: "Nom du menu (ex: Jeux, Dev...)"
-                            color: root.barForeground
-                            opacity: 0.4
-                            visible: menuNameInput.text.length === 0
-                            anchors.fill: parent
-                            verticalAlignment: Text.AlignVCenter
-                        }
-                    }
-                }
+                spacing: Style.space(10)
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 8
-
-                    CheckBox {
-                        id: browserAppsToggle
-                        checked: true
-                    }
-
                     Text {
-                        text: "Lister toutes les applications du PC"
+                        text: root.isEditing ? "Configuration du Menu" : (hostWidget ? hostWidget.menuName : "Mon Menu")
                         color: root.barForeground
-                        font.pixelSize: Style.font.body
+                        font.bold: true
+                        font.pixelSize: Style.font.subtitle
+                        Layout.fillWidth: true
+                    }
+                    Button {
+                        text: root.isEditing ? "◀ Retour" : "⚙ Config / Add"
+                        onClicked: root.isEditing = !root.isEditing
                     }
                 }
 
+                // --- VUE NORMALE : Liste des applications sauvegardées (cliquables pour s'ouvrir) ---
                 ListView {
-                    id: appListView
+                    id: savedListView
                     Layout.fillWidth: true
                     Layout.preferredHeight: 220
                     clip: true
-                    visible: browserAppsToggle.checked
-                    model: ListModel { id: allAppsModel }
-                    delegate: RowLayout {
-                        width: appListView.width
-                        spacing: 8
-
-                        CheckBox {
-                            checked: model.selected
-                            onCheckedChanged: model.selected = checked
+                    visible: !root.isEditing
+                    model: savedAppsModel
+                    delegate: Rectangle {
+                        width: savedListView.width
+                        height: 38
+                        color: "transparent"
+                        RowLayout {
+                            anchors.fill: parent
+                            spacing: 10
+                            Text {
+                                text: "🔹 " + model.appName
+                                color: root.barForeground
+                                font.pixelSize: Style.font.body
+                                Layout.fillWidth: true
+                            }
                         }
-
-                        Text {
-                            text: model.appName
-                            color: root.barForeground
-                            Layout.fillWidth: true
-                            font.pixelSize: Style.font.body
-                            elide: Text.ElideRight
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: {
+                                var cleanExec = model.appExec.replace(/%[a-zA-Z]/g, "").trim();
+                                actionProcess.command = ["sh", "-c", cleanExec + " &"];
+                                actionProcess.running = true;
+                                root.close();
+                            }
                         }
                     }
                 }
 
-                Button {
-                    Layout.alignment: Qt.AlignRight
-                    text: "Sauvegarder"
-                    onClicked: {
-                        var menuName = menuNameInput.text.trim();
-                        if (menuName.length === 0) return;
+                // --- VUE CONFIGURATION / AJOUT ---
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    visible: root.isEditing
 
-                        var selectedApps = [];
-                        for (var i = 0; i < allAppsModel.count; i++) {
-                            var item = allAppsModel.get(i);
-                            if (item && item.selected) {
-                                selectedApps.push(item.appName);
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 36
+                        color: "transparent"
+                        border.color: root.barForeground
+                        border.width: 1
+                        radius: 4
+                        TextInput {
+                            id: menuNameInput
+                            anchors.fill: parent
+                            anchors.leftMargin: 8
+                            anchors.rightMargin: 8
+                            verticalAlignment: TextInput.AlignVCenter
+                            color: root.barForeground
+                            font.pixelSize: Style.font.body
+                            text: hostWidget && hostWidget.menuName !== "+ Add the app" ? hostWidget.menuName : ""
+
+                            Text {
+                                text: "Nom du menu (ex: Jeux, Dev...)"
+                                color: root.barForeground
+                                opacity: 0.4
+                                visible: menuNameInput.text.length === 0
+                                anchors.fill: parent
+                                verticalAlignment: Text.AlignVCenter
                             }
                         }
+                    }
 
-                        var payload = JSON.stringify({ name: menuName, apps: selectedApps });
-                        saveProcess.command = ["sh", "-c", "mkdir -p ~/.config/omarchy/app-menus && echo '" + payload.replace(/'/g, "'\\''") + "' > ~/.config/omarchy/app-menus/" + menuName + ".json"];
-                        saveProcess.running = true;
+                    Text {
+                        text: "Coche les applications à inclure :"
+                        color: root.barForeground
+                        font.pixelSize: Style.font.body
+                    }
 
-                        console.log("Menu '" + menuName + "' sauvegardé avec " + selectedApps.length + " applications.");
-                        root.close();
+                    ListView {
+                        id: configListView
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 180
+                        clip: true
+                        model: allAppsModel
+                        delegate: RowLayout {
+                            width: configListView.width
+                            spacing: 6
+                            CheckBox {
+                                checked: model.selected
+                                onCheckedChanged: model.selected = checked
+                            }
+                            Text {
+                                text: model.appName
+                                color: root.barForeground
+                                Layout.fillWidth: true
+                                font.pixelSize: Style.font.body
+                                elide: Text.ElideRight
+                            }
+                        }
+                    }
+
+                    Button {
+                        Layout.alignment: Qt.AlignRight
+                        text: "Enregistrer"
+                        onClicked: {
+                            var menuName = menuNameInput.text.trim();
+                            if (menuName.length === 0) return;
+
+                            var selectedApps = [];
+                            for (var i = 0; i < allAppsModel.count; i++) {
+                                var item = allAppsModel.get(i);
+                                if (item && item.selected) {
+                                    selectedApps.push({ name: item.appName, exec: item.appExec });
+                                }
+                            }
+
+                            var payload = JSON.stringify({ name: menuName, apps: selectedApps });
+                            actionProcess.command = ["sh", "-c", "mkdir -p ~/.config/omarchy/app-menus && echo '" + payload.replace(/'/g, "'\\''") + "' > ~/.config/omarchy/app-menus/current.json"];
+                            actionProcess.running = true;
+
+                            if (hostWidget) hostWidget.menuName = menuName;
+                            root.isEditing = false;
+                            loadSavedApps.running = true;
+                            root.close();
+                        }
                     }
                 }
             }
