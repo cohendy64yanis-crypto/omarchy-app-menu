@@ -6,38 +6,25 @@ BarWidget {
     id: root
     moduleName: "io.github.cohendy64yanis-crypto.app-menu"
 
-    // La taille du widget copie strictement celle du bouton. Zéro ambiguïté.
-    implicitWidth: addBtn.implicitWidth
-    implicitHeight: addBtn.implicitHeight
-
     readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
+    readonly property bool popoutSwitchClosing: panelLoader.item ? panelLoader.item.popoutSwitchClosing === true : false
 
     function open() { if (panelLoader.item) panelLoader.item.open() }
     function close() { if (panelLoader.item) panelLoader.item.close() }
     function toggle() { if (panelLoader.item) panelLoader.item.toggle() }
+    function closeForPopoutSwitch() { if (panelLoader.item) panelLoader.item.closeForPopoutSwitch() }
 
     function injectPanel() {
         if (!panelLoader.item) return
         panelLoader.item.bar = root.bar
-        panelLoader.item.anchorItem = addBtn
+        panelLoader.item.anchorItem = button
         panelLoader.item.hostWidget = root
     }
 
+    implicitWidth: button.implicitWidth
+    implicitHeight: button.implicitHeight
     onBarChanged: injectPanel()
 
-    // Le bouton s'affiche directement
-    WidgetButton {
-        id: addBtn
-        text: "+ Add the app"
-        tooltipText: "Créer un nouveau menu d'applications"
-        anchors.fill: parent
-        
-        onPressed: function(buttonCode) {
-            if (buttonCode === Qt.LeftButton) root.toggle()
-        }
-    }
-
-    // Le panneau est chargé discrètement
     Loader {
         id: panelLoader
         active: true
@@ -46,6 +33,17 @@ BarWidget {
         onLoaded: {
             root.injectPanel()
             Qt.callLater(root.injectPanel)
+        }
+    }
+
+    WidgetButton {
+        id: button
+        anchors.fill: parent
+        bar: root.bar
+        text: "+ Add the app"
+        tooltipText: "Créer un menu d'applications"
+        onPressed: function(buttonCode) {
+            if (buttonCode === Qt.LeftButton) root.toggle()
         }
     }
 }
