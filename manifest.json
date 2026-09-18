@@ -3,6 +3,8 @@
   "id": "io.github.cohendy64yanis-crypto.app-menu",
   "name": "App Menu Manager",
   "version": "1.0.0",
+  "author": "cohendy64yanis-crypto",
+  "license": "MIT",
   "description": "Menu déroulant personnalisé pour tes applications",
   "kinds": [
     "bar-widget"
@@ -14,6 +16,6 @@
     "displayName": "App Menu",
     "category": "Utilities",
     "allowMultiple": false,
-    "defaultSection": "left"
+    "defaultSection": "center"
   }
 }
