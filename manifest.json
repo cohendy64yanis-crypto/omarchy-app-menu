@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 1,
   "id": "com.custom.appmenu",
   "name": "App Menu Manager",
   "version": "1.0.0",
