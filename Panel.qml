@@ -114,7 +114,7 @@ print(json.dumps(apps))
                     }
                 }
 
-                // --- VUE NORMALE : Liste des applications sauvegardées (cliquables pour s'ouvrir) ---
+                // --- VUE NORMALE : Liste des applications sauvegardées (cliquables) ---
                 ListView {
                     id: savedListView
                     Layout.fillWidth: true
@@ -140,7 +140,7 @@ print(json.dumps(apps))
                             anchors.fill: parent
                             onClicked: {
                                 var cleanExec = model.appExec.replace(/%[a-zA-Z]/g, "").trim();
-                                actionProcess.command = ["sh", "-c", cleanExec + " &"];
+                                actionProcess.command = ["sh", "-c", "nohup " + cleanExec + " >/dev/null 2>&1 &"];
                                 actionProcess.running = true;
                                 root.close();
                             }
@@ -148,7 +148,7 @@ print(json.dumps(apps))
                     }
                 }
 
-                // --- VUE CONFIGURATION / AJOUT ---
+                // --- VUE CONFIGURATION / AJOUT AVEC RECHERCHE ---
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 8
@@ -182,10 +182,32 @@ print(json.dumps(apps))
                         }
                     }
 
-                    Text {
-                        text: "Coche les applications à inclure :"
-                        color: root.barForeground
-                        font.pixelSize: Style.font.body
+                    // Barre de recherche
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 34
+                        color: "transparent"
+                        border.color: root.barForeground
+                        border.width: 1
+                        radius: 4
+                        TextInput {
+                            id: searchInput
+                            anchors.fill: parent
+                            anchors.leftMargin: 8
+                            anchors.rightMargin: 8
+                            verticalAlignment: TextInput.AlignVCenter
+                            color: root.barForeground
+                            font.pixelSize: Style.font.body
+
+                            Text {
+                                text: "🔍 Rechercher une application..."
+                                color: root.barForeground
+                                opacity: 0.4
+                                visible: searchInput.text.length === 0
+                                anchors.fill: parent
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                        }
                     }
 
                     ListView {
@@ -194,19 +216,28 @@ print(json.dumps(apps))
                         Layout.preferredHeight: 180
                         clip: true
                         model: allAppsModel
-                        delegate: RowLayout {
+                        delegate: Rectangle {
                             width: configListView.width
-                            spacing: 6
-                            CheckBox {
-                                checked: model.selected
-                                onCheckedChanged: model.selected = checked
-                            }
-                            Text {
-                                text: model.appName
-                                color: root.barForeground
-                                Layout.fillWidth: true
-                                font.pixelSize: Style.font.body
-                                elide: Text.ElideRight
+                            height: matchQuery ? 32 : 0
+                            visible: matchQuery
+                            color: "transparent"
+
+                            property bool matchQuery: searchInput.text.length === 0 || model.appName.toLowerCase().includes(searchInput.text.toLowerCase())
+
+                            RowLayout {
+                                anchors.fill: parent
+                                spacing: 6
+                                CheckBox {
+                                    checked: model.selected
+                                    onCheckedChanged: model.selected = checked
+                                }
+                                Text {
+                                    text: model.appName
+                                    color: root.barForeground
+                                    Layout.fillWidth: true
+                                    font.pixelSize: Style.font.body
+                                    elide: Text.ElideRight
+                                }
                             }
                         }
                     }
