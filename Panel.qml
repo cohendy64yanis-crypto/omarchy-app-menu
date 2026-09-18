@@ -16,7 +16,11 @@ Panel {
     property bool isEditing: false
 
     function open() { root.controller.show() }
-    function close() { root.controller.hide() }
+    function close() { 
+        searchInput.text = "";
+        root.isEditing = false;
+        root.controller.hide(); 
+    }
 
     ListModel { id: savedAppsModel }
     ListModel { id: allAppsModel }
@@ -31,8 +35,13 @@ Panel {
                     var json = JSON.parse(data.trim());
                     savedAppsModel.clear();
                     if (json.apps) {
+                        var seenNames = {};
                         for (var i = 0; i < json.apps.length; i++) {
-                            savedAppsModel.append({ appName: json.apps[i].name, appExec: json.apps[i].exec });
+                            var appName = json.apps[i].name;
+                            if (!seenNames[appName]) {
+                                seenNames[appName] = true;
+                                savedAppsModel.append({ appName: appName, appExec: json.apps[i].exec });
+                            }
                         }
                     }
                 } catch(e) {}
@@ -55,6 +64,7 @@ if os.path.exists(config_path):
     except: pass
 
 apps = []
+seen = set()
 paths = ['/usr/share/applications/*.desktop', os.path.expanduser('~/.local/share/applications/*.desktop')]
 for p in paths:
     for f in glob.glob(p):
@@ -66,7 +76,8 @@ for p in paths:
                 if de.get('Type') == 'Application' and not de.get('NoDisplay') == 'true':
                     name = de.get('Name', '')
                     exec_cmd = de.get('Exec', '')
-                    if name and exec_cmd:
+                    if name and exec_cmd and name not in seen:
+                        seen.add(name)
                         apps.append({'name': name, 'exec': exec_cmd, 'selected': name in saved_names})
         except: pass
 print(json.dumps(apps))
@@ -122,13 +133,15 @@ print(json.dumps(apps))
                         onClicked: {
                             root.isEditing = !root.isEditing;
                             if (root.isEditing) {
-                                loadAllApps.running = true; // Actualise et coche les apps déjà enregistrées
+                                loadAllApps.running = true;
+                            } else {
+                                searchInput.text = "";
                             }
                         }
                     }
                 }
 
-                // --- VUE NORMALE ---
+                // --- VUE NORMALE (Apps sauvegardées avec bouton de suppression) ---
                 ListView {
                     id: savedListView
                     Layout.fillWidth: true
@@ -143,20 +156,41 @@ print(json.dumps(apps))
                         RowLayout {
                             anchors.fill: parent
                             spacing: 10
-                            Text {
-                                text: "🔹 " + model.appName
-                                color: root.barForeground
-                                font.pixelSize: Style.font.body
+                            
+                            MouseArea {
                                 Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                onMouseXChanged: {}
+                                onClicked: {
+                                    var cleanExec = model.appExec.replace(/%[a-zA-Z]/g, "").trim();
+                                    actionProcess.command = ["sh", "-c", "nohup " + cleanExec + " >/dev/null 2>&1 &"];
+                                    actionProcess.running = true;
+                                    root.close();
+                                }
+                                Text {
+                                    text: "🔹 " + model.appName
+                                    color: root.barForeground
+                                    font.pixelSize: Style.font.body
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
                             }
-                        }
-                        MouseArea {
-                            anchors.fill: parent
-                            onClicked: {
-                                var cleanExec = model.appExec.replace(/%[a-zA-Z]/g, "").trim();
-                                actionProcess.command = ["sh", "-c", "nohup " + cleanExec + " >/dev/null 2>&1 &"];
-                                actionProcess.running = true;
-                                root.close();
+
+                            Button {
+                                text: "🗑️"
+                                implicitWidth: 32
+                                implicitHeight: 32
+                                onClicked: {
+                                    // Supprimer l'application de la liste et mettre à jour le fichier JSON
+                                    savedAppsModel.remove(index);
+                                    var updatedApps = [];
+                                    for (var i = 0; i < savedAppsModel.count; i++) {
+                                        updatedApps.push({ name: savedAppsModel.get(i).appName, exec: savedAppsModel.get(i).appExec });
+                                    }
+                                    var menuName = hostWidget ? hostWidget.menuName : "Mon Menu";
+                                    var payload = JSON.stringify({ name: menuName, apps: updatedApps });
+                                    actionProcess.command = ["sh", "-c", "mkdir -p ~/.config/omarchy/app-menus && echo '" + payload.replace(/'/g, "'\\''") + "' > ~/.config/omarchy/app-menus/current.json"];
+                                    actionProcess.running = true;
+                                }
                             }
                         }
                     }
@@ -263,9 +297,11 @@ print(json.dumps(apps))
                             if (menuName.length === 0) return;
 
                             var selectedApps = [];
+                            var uniqueCheck = {};
                             for (var i = 0; i < allAppsModel.count; i++) {
                                 var item = allAppsModel.get(i);
-                                if (item && item.selected) {
+                                if (item && item.selected && !uniqueCheck[item.appName]) {
+                                    uniqueCheck[item.appName] = true;
                                     selectedApps.push({ name: item.appName, exec: item.appExec });
                                 }
                             }
@@ -276,6 +312,7 @@ print(json.dumps(apps))
 
                             if (hostWidget) hostWidget.menuName = menuName;
                             root.isEditing = false;
+                            searchInput.text = "";
                             loadSavedApps.running = true;
                             root.close();
                         }
