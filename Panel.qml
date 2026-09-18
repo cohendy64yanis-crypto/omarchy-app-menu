@@ -43,7 +43,17 @@ Panel {
     Process {
         id: loadAllApps
         command: ["python3", "-c", "
-import glob, configparser, os
+import glob, configparser, os, json
+saved_names = set()
+config_path = os.path.expanduser('~/.config/omarchy/app-menus/current.json')
+if os.path.exists(config_path):
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            if 'apps' in data:
+                saved_names = {app['name'] for app in data['apps']}
+    except: pass
+
 apps = []
 paths = ['/usr/share/applications/*.desktop', os.path.expanduser('~/.local/share/applications/*.desktop')]
 for p in paths:
@@ -57,19 +67,18 @@ for p in paths:
                     name = de.get('Name', '')
                     exec_cmd = de.get('Exec', '')
                     if name and exec_cmd:
-                        apps.append({'name': name, 'exec': exec_cmd})
+                        apps.append({'name': name, 'exec': exec_cmd, 'selected': name in saved_names})
         except: pass
-import json
 print(json.dumps(apps))
 "]
-        running: true
+        running: false
         stdout: SplitParser {
             onRead: data => {
                 try {
                     var list = JSON.parse(data.trim());
                     allAppsModel.clear();
                     for (var i = 0; i < list.length; i++) {
-                        allAppsModel.append({ appName: list[i].name, appExec: list[i].exec, selected: false });
+                        allAppsModel.append({ appName: list[i].name, appExec: list[i].exec, selected: list[i].selected });
                     }
                 } catch(e) {}
             }
@@ -110,11 +119,16 @@ print(json.dumps(apps))
                     }
                     Button {
                         text: root.isEditing ? "◀ Retour" : "⚙ Config / Add"
-                        onClicked: root.isEditing = !root.isEditing
+                        onClicked: {
+                            root.isEditing = !root.isEditing;
+                            if (root.isEditing) {
+                                loadAllApps.running = true; // Actualise et coche les apps déjà enregistrées
+                            }
+                        }
                     }
                 }
 
-                // --- VUE NORMALE : Liste des applications sauvegardées (cliquables) ---
+                // --- VUE NORMALE ---
                 ListView {
                     id: savedListView
                     Layout.fillWidth: true
@@ -148,7 +162,7 @@ print(json.dumps(apps))
                     }
                 }
 
-                // --- VUE CONFIGURATION / AJOUT AVEC RECHERCHE ---
+                // --- VUE CONFIGURATION / AJOUT ---
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 8
@@ -182,7 +196,6 @@ print(json.dumps(apps))
                         }
                     }
 
-                    // Barre de recherche
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 34
