@@ -24,7 +24,7 @@ Panel {
         open: root.opened
         focusTarget: keyCatcher
 
-        contentWidth: panel.fittedContentWidth(Style.space(320))
+        contentWidth: panel.fittedContentWidth(Style.space(340))
         contentHeight: panel.fittedContentHeight(content.implicitHeight)
 
         PanelKeyCatcher {
@@ -44,10 +44,33 @@ Panel {
                     font.pixelSize: Style.font.subtitle
                 }
 
-                TextField {
-                    id: menuNameInput
+                // Rectangle bien visible pour le nom du menu
+                Rectangle {
                     Layout.fillWidth: true
-                    placeholderText: "Nom du menu (ex: Jeux, Dev...)"
+                    Layout.preferredHeight: 38
+                    color: "transparent"
+                    border.color: root.barForeground
+                    border.width: 1
+                    radius: 4
+
+                    TextInput {
+                        id: menuNameInput
+                        anchors.fill: parent
+                        anchors.leftMargin: 10
+                        anchors.rightMargin: 10
+                        verticalAlignment: TextInput.AlignVCenter
+                        color: root.barForeground
+                        font.pixelSize: Style.font.body
+
+                        Text {
+                            text: "Nom du menu (ex: Jeux, Dev...)"
+                            color: root.barForeground
+                            opacity: 0.4
+                            visible: menuNameInput.text.length === 0
+                            anchors.fill: parent
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                    }
                 }
 
                 Text {
@@ -59,14 +82,14 @@ Panel {
                 ListView {
                     id: appListView
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 180
+                    Layout.preferredHeight: 200
                     clip: true
                     model: ListModel {
                         ListElement { appName: "Terminal"; selected: false }
-                        ListElement { appName: "Navigateur"; selected: false }
+                        ListElement { appName: "Navigateur Web (Firefox / Chrome)"; selected: false }
                         ListElement { appName: "Discord"; selected: false }
                         ListElement { appName: "Geometry Dash"; selected: false }
-                        ListElement { appName: "Editeur de texte"; selected: false }
+                        ListElement { appName: "Éditeur de texte"; selected: false }
                     }
                     delegate: RowLayout {
                         width: appListView.width
@@ -81,6 +104,7 @@ Panel {
                             text: model.appName
                             color: root.barForeground
                             Layout.fillWidth: true
+                            font.pixelSize: Style.font.body
                         }
                     }
                 }
