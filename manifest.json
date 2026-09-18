@@ -7,7 +7,9 @@
   "kinds": [
     "widget"
   ],
-  "main": "index.html",
+  "entryPoints": {
+    "widget": "index.html"
+  },
   "position": "top-left",
   "permissions": [
     "system.apps",
