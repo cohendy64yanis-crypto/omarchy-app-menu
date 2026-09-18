@@ -7,14 +7,16 @@ BarWidget {
     id: root
     moduleName: "io.github.cohendy64yanis-crypto.app-menu"
 
-    // Permet de savoir si le panneau est ouvert
+    // La correction est ici : on donne une taille au widget pour qu'il soit visible
+    implicitWidth: mainLayout.implicitWidth
+    implicitHeight: mainLayout.implicitHeight
+
     readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
 
     function open() { if (panelLoader.item) panelLoader.item.open() }
     function close() { if (panelLoader.item) panelLoader.item.close() }
     function toggle() { if (panelLoader.item) panelLoader.item.toggle() }
 
-    // Connecte le panneau volant au bouton de la barre
     function injectPanel() {
         if (!panelLoader.item) return
         panelLoader.item.bar = root.bar
@@ -24,7 +26,6 @@ BarWidget {
 
     onBarChanged: injectPanel()
 
-    // Charge le fichier Panel.qml en arrière-plan
     Loader {
         id: panelLoader
         active: true
@@ -36,12 +37,10 @@ BarWidget {
         }
     }
 
-    // L'interface visible dans ta barre à gauche
     RowLayout {
+        id: mainLayout
         anchors.fill: parent
         spacing: 4
-
-        // Espace où les menus déroulants créés s'afficheront plus tard
         
         WidgetButton {
             id: addBtn
