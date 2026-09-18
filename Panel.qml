@@ -15,10 +15,6 @@ Panel {
 
     function open() { root.controller.show() }
     function close() { root.controller.hide() }
-    function switchPanel(direction) {
-        if (root.bar && typeof root.bar.switchPanelFrom === "function") return root.bar.switchPanelFrom(root.hostWidget || root, direction)
-        return false
-    }
 
     KeyboardPanel {
         id: panel
@@ -28,7 +24,7 @@ Panel {
         open: root.opened
         focusTarget: keyCatcher
 
-        contentWidth: panel.fittedContentWidth(Style.space(280))
+        contentWidth: panel.fittedContentWidth(Style.space(320))
         contentHeight: panel.fittedContentHeight(content.implicitHeight)
 
         PanelKeyCatcher {
@@ -36,23 +32,66 @@ Panel {
             anchors.fill: parent
             onCloseRequested: root.close()
 
-            Column {
+            ColumnLayout {
                 id: content
                 width: parent.width
-                spacing: Style.space(8)
+                spacing: Style.space(12)
 
                 Text {
-                    width: parent.width
                     text: "Créer un nouveau menu"
                     color: root.barForeground
-                    font.family: root.bar ? root.bar.fontFamily : Style.font.family
-                    font.pixelSize: Style.font.subtitle
                     font.bold: true
+                    font.pixelSize: Style.font.subtitle
                 }
 
                 TextField {
-                    width: parent.width
-                    placeholderText: "Nom du menu..."
+                    id: menuNameInput
+                    Layout.fillWidth: true
+                    placeholderText: "Nom du menu (ex: Jeux, Dev...)"
+                }
+
+                Text {
+                    text: "Sélectionne les applications :"
+                    color: root.barForeground
+                    font.pixelSize: Style.font.body
+                }
+
+                ListView {
+                    id: appListView
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 180
+                    clip: true
+                    model: ListModel {
+                        ListElement { appName: "Terminal"; selected: false }
+                        ListElement { appName: "Navigateur"; selected: false }
+                        ListElement { appName: "Discord"; selected: false }
+                        ListElement { appName: "Geometry Dash"; selected: false }
+                        ListElement { appName: "Editeur de texte"; selected: false }
+                    }
+                    delegate: RowLayout {
+                        width: appListView.width
+                        spacing: 8
+
+                        CheckBox {
+                            checked: model.selected
+                            onCheckedChanged: model.selected = checked
+                        }
+
+                        Text {
+                            text: model.appName
+                            color: root.barForeground
+                            Layout.fillWidth: true
+                        }
+                    }
+                }
+
+                Button {
+                    Layout.alignment: Qt.AlignRight
+                    text: "Sauvegarder"
+                    onClicked: {
+                        console.log("Menu créé : " + menuNameInput.text)
+                        root.close()
+                    }
                 }
             }
         }
