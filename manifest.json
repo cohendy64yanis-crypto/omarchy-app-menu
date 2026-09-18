@@ -4,6 +4,9 @@
   "name": "App Menu Manager",
   "version": "1.0.0",
   "description": "Gestionnaire de menus déroulants d'applications sur-mesure",
+  "kinds": [
+    "widget"
+  ],
   "main": "index.html",
   "position": "top-left",
   "permissions": [
