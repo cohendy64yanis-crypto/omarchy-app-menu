@@ -9,13 +9,16 @@ import qs.Ui
 Panel {
     id: root
     moduleName: "io.github.cohendy64yanis-crypto.app-menu"
-    manageIpc: false
+    manageIpc: true
 
     property var anchorItem: null
     property var hostWidget: null
     property bool isEditing: false
 
-    function open() { root.controller.show(); }
+    function open() { 
+        root.controller.show(); 
+        savedListView.forceActiveFocus();
+    }
     function close() { 
         searchInput.text = "";
         root.isEditing = false;
@@ -112,9 +115,9 @@ print(json.dumps(apps))
         PanelKeyCatcher {
             id: keyCatcher
             anchors.fill: parent
+            focus: true
             onCloseRequested: root.close()
 
-            // Gestion globale des flèches et de la touche Entrée ici
             Keys.onPressed: function(event) {
                 if (!root.isEditing) {
                     if (event.key === Qt.Key_Down) {
@@ -164,6 +167,7 @@ print(json.dumps(apps))
                                 loadAllApps.running = true;
                             } else {
                                 searchInput.text = "";
+                                savedListView.forceActiveFocus();
                             }
                         }
                     }
@@ -177,6 +181,7 @@ print(json.dumps(apps))
                     clip: true
                     visible: !root.isEditing
                     model: savedAppsModel
+                    focus: true
 
                     highlight: Rectangle {
                         color: root.barForeground
@@ -218,8 +223,13 @@ print(json.dumps(apps))
                                 onClicked: {
                                     savedAppsModel.remove(index);
                                     var updatedApps = [];
+                                    var uniqueCheck = {};
                                     for (var i = 0; i < savedAppsModel.count; i++) {
-                                        updatedApps.push({ name: savedAppsModel.get(i).appName, exec: savedAppsModel.get(i).appExec });
+                                        var appName = savedAppsModel.get(i).appName;
+                                        if (!uniqueCheck[appName]) {
+                                            uniqueCheck[appName] = true;
+                                            updatedApps.push({ name: appName, exec: savedAppsModel.get(i).appExec });
+                                        }
                                     }
                                     var menuName = hostWidget ? hostWidget.menuName : "Mon Menu";
                                     var payload = JSON.stringify({ name: menuName, apps: updatedApps });
