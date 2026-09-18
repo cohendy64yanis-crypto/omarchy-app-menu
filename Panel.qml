@@ -15,7 +15,10 @@ Panel {
     property var hostWidget: null
     property bool isEditing: false
 
-    function open() { root.controller.show() }
+    function open() { 
+        root.controller.show(); 
+        savedListView.forceActiveFocus(); // Donne le focus clavier direct à la liste à l'ouverture
+    }
     function close() { 
         searchInput.text = "";
         root.isEditing = false;
@@ -136,12 +139,13 @@ print(json.dumps(apps))
                                 loadAllApps.running = true;
                             } else {
                                 searchInput.text = "";
+                                savedListView.forceActiveFocus();
                             }
                         }
                     }
                 }
 
-                // --- VUE NORMALE (Apps sauvegardées avec bouton de suppression) ---
+                // --- VUE NORMALE (Navigation flèches + Entrée) ---
                 ListView {
                     id: savedListView
                     Layout.fillWidth: true
@@ -149,6 +153,36 @@ print(json.dumps(apps))
                     clip: true
                     visible: !root.isEditing
                     model: savedAppsModel
+                    focus: true
+
+                    highlight: Rectangle {
+                        color: root.barForeground
+                        opacity: 0.15
+                        radius: 4
+                    }
+                    highlightFollowsCurrentItem: true
+
+                    Keys.onPressed: function(event) {
+                        if (event.key === Qt.Key_Down) {
+                            if (currentIndex < count - 1) currentIndex++;
+                            event.accepted = true;
+                        } else if (event.key === Qt.Key_Up) {
+                            if (currentIndex > 0) currentIndex--;
+                            event.accepted = true;
+                        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                            if (currentIndex >= 0 && currentIndex < count) {
+                                var item = model.get(currentIndex);
+                                if (item) {
+                                    var cleanExec = item.appExec.replace(/%[a-zA-Z]/g, "").trim();
+                                    actionProcess.command = ["sh", "-c", "nohup " + cleanExec + " >/dev/null 2>&1 &"];
+                                    actionProcess.running = true;
+                                    root.close();
+                                }
+                            }
+                            event.accepted = true;
+                        }
+                    }
+
                     delegate: Rectangle {
                         width: savedListView.width
                         height: 38
@@ -160,8 +194,8 @@ print(json.dumps(apps))
                             MouseArea {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
-                                onMouseXChanged: {}
                                 onClicked: {
+                                    savedListView.currentIndex = index;
                                     var cleanExec = model.appExec.replace(/%[a-zA-Z]/g, "").trim();
                                     actionProcess.command = ["sh", "-c", "nohup " + cleanExec + " >/dev/null 2>&1 &"];
                                     actionProcess.running = true;
@@ -180,7 +214,6 @@ print(json.dumps(apps))
                                 implicitWidth: 32
                                 implicitHeight: 32
                                 onClicked: {
-                                    // Supprimer l'application de la liste et mettre à jour le fichier JSON
                                     savedAppsModel.remove(index);
                                     var updatedApps = [];
                                     for (var i = 0; i < savedAppsModel.count; i++) {
