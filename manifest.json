@@ -1,18 +1,19 @@
 {
   "schemaVersion": 1,
-  "id": "com.custom.appmenu",
+  "id": "io.github.cohendy64yanis-crypto.app-menu",
   "name": "App Menu Manager",
   "version": "1.0.0",
-  "description": "Gestionnaire de menus déroulants d'applications sur-mesure",
+  "description": "Menu déroulant personnalisé pour tes applications",
   "kinds": [
-    "widget"
+    "bar-widget"
   ],
   "entryPoints": {
-    "widget": "index.html"
+    "barWidget": "BarWidget.qml"
   },
-  "position": "top-left",
-  "permissions": [
-    "system.apps",
-    "system.process"
-  ]
+  "barWidget": {
+    "displayName": "App Menu",
+    "category": "Utilities",
+    "allowMultiple": false,
+    "defaultSection": "left"
+  }
 }
